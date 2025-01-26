@@ -48,12 +48,18 @@ end
 -- Displays mode, file name, modified status, line:column, and percentage in the status line.
 vim.opt.statusline = "%{v:lua.mode_map()} %f %m %= %l:%c [%p%%]"
 
+-- Enable Neovim to use the system clipboard for seamless copy-paste operations across applications.
+-- It also allows us to paste with the 'p' and 'P' commands without using the '"+p' or '"+P' commands.
+vim.opt.clipboard = 'unnamedplus'
+
 local state = {
   left_margin_window = nil,
   left_margin_window_buffer = nil,
   buffers_floating_window = nil,
   buffers_floating_window_buffer = nil
 }
+
+-- TODO: add: git diff, multiline comment, auto indent detection
 
 local function calculate_available_columns()
   return vim.o.columns - RULER_COLUMN
@@ -94,8 +100,8 @@ local function open_left_margin_window()
   state.left_margin_window = vim.api.nvim_get_current_win()
   state.left_margin_window_buffer = vim.api.nvim_get_current_buf()
 
-  vim.bo[state.left_margin_window_buffer].bufhidden = "wipe"
-  vim.bo[state.left_margin_window_buffer].buftype = "nofile"
+  vim.bo[state.left_margin_window_buffer].bufhidden = "wipe" -- TODO: duplicate
+  vim.bo[state.left_margin_window_buffer].buftype = "nofile" -- TODO: is it useful?
   vim.wo[state.left_margin_window].number = false
   vim.wo[state.left_margin_window].relativenumber = false
   vim.wo[state.left_margin_window].cursorline = false
@@ -248,86 +254,29 @@ require("lazy").setup({
     end
   },
 
-  -- A plugin for managing LSP servers, DAP servers, linters, and formatters,
-  -- simplifying their installation and configuration.
-  {
-    "williamboman/mason.nvim",
-    build = ":MasonUpdate",
-    config = function()
-      require("mason").setup()
-    end
-  },
-
-  -- This plugin simplifies the management and configuration of LSP servers
-  -- by integrating 'Mason' with 'nvim-lspconfig' for automatic setup.
-  {
-    "williamboman/mason-lspconfig.nvim",
-    -- "neovim/nvim-lspconfig" is one of the most popular plugins and is enough to have it only as a dependency.
-    dependencies = { "williamboman/mason.nvim", "neovim/nvim-lspconfig" },
-    config = function()
-      require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls" },
-        automatic_installation = true
-      })
-
-      -- Configures the Lua Language Server
-      require("lspconfig").lua_ls.setup({
-        settings = {
-          Lua = {
-            runtime = {
-               -- Specifies the Lua runtime version (Neovim uses LuaJIT for better performance).
-              version = "LuaJIT",
-               -- Splits Lua's module search paths into a table for the language server,
-               -- ensuring it can resolve required modules correctly.
-              path = vim.split(package.path, ";")
-            },
-            -- It prevents 'undefined global' warnings for the Neovim 'vim' global.
-            diagnostics = {
-              globals = { "vim" }
-            },
-            workspace = {
-              -- TODO: comments. prev: comment: It includes Neovim runtime files to provide better support for its APIs.
-              library = vim.tbl_extend(
-                "force",
-                vim.api.nvim_get_runtime_file("", true),
-                { "${3rd}/luv/library" }
-              ),
-              -- It turns off the automatic detection of third-party libraries or configurations
-              -- to avoid unnecessary warnings or conflicts.
-              checkThirdParty = false
-            },
-            -- It turns off telemetry to prevent the collection of usage and diagnostics data,
-            -- ensuring better privacy and performance.
-            telemetry = {
-              enable = false
-            }
-          }
-        }
-      })
-    end
-  },
+  require("lsp"),
 
   -- This plugin provides better syntax highlighting, code folding,
   -- and multi-language support than standard regex using Tree-sitter parsing.
   -- config = function() is currently not needed
   {
     "nvim-treesitter/nvim-treesitter",
-    build = ":TSUpdate", -- TODO: comment
-    -- TODO: comments
+    -- After installing the plugin, it updates Tree-sitter parsers by running ':TSUpdate.'
+    build = ":TSUpdate",
     opts = {
       ensure_installed = {
-        "css",
-        "diff",
-        "html",
-        "javascript",
-        "lua",
-        "luadoc",
-        "markdown",
-        "markdown_inline",
-        "query",
-        "vim",
-        "vimdoc"
-      },
+        "css", -- CSS syntax highlighting and parsing
+        "diff", -- Highlights differences in files for better readability
+        "html", -- HTML syntax highlighting and parsing
+        "javascript", -- JavaScript syntax highlighting and parsing
+        "lua", -- Lua syntax highlighting and parsing
+        "luadoc", -- Lua documentation syntax highlighting
+        "markdown", -- Markdown syntax highlighting and parsing
+        "markdown_inline", -- Inline Markdown highlighting and parsing
+        "query", -- Tree-sitter queries for advanced highlighting and parsing
+        "vim", -- Vimscript syntax highlighting and parsing
+        "vimdoc" -- Vim documentation highlighting
+    },
       -- For languages like Ruby that use Vim's regex for indenting,
       -- add them to 'additional_vim_regex_highlighting' and 'disable indent.'
       highlight = {
