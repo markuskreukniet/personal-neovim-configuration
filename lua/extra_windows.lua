@@ -159,7 +159,8 @@ return function(config)
 
       vim.schedule(function()
         if ids_count > 1 then
-          vim.api.nvim_exec_autocmds("VimResized", {}) -- TODO: comment
+           -- Trigger "VimResized" to handle opening and closing extra windows.
+          vim.api.nvim_exec_autocmds("VimResized", {})
         elseif ids_count == 1 and args.event == "WinClosed" then
           vim.cmd("q")
         end
