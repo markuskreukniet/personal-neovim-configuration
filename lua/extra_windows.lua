@@ -26,7 +26,7 @@ return function(config)
 
   local function open_left_margin_window(available_columns)
     vim.cmd("topleft vnew")
-    vim.cmd("vertical resize " .. math.max(0, math.floor(available_columns / 2)))
+    vim.cmd("vertical resize " .. math.floor(available_columns / 2))
 
     windows_state.left_margin_window = vim.api.nvim_get_current_win()
     local buf = vim.api.nvim_get_current_buf()

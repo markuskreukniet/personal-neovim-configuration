@@ -7,5 +7,5 @@
 
 ## TODO:
 
-- auto indent detection
 - something like a minimap?
+- show :reg content in floating window?
