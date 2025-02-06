@@ -1,6 +1,10 @@
 local SPACE_BAR = " "
 local RULER_COLUMN = 120
 
+-- The 'noremap = true' prevents recursive mappings,
+-- and 'silent = true' suppresses the command display in the command line.
+local KEY_MAP_OPTIONS_TABLE = { noremap = true, silent = true }
+
 vim.g.mapleader = SPACE_BAR -- Set the global leader key to the space bar.
 vim.g.maplocalleader = SPACE_BAR -- Set the local leader key to the space bar.
 
@@ -30,6 +34,7 @@ vim.opt.listchars = { -- Configure symbols used to visualize whitespace and line
   nbsp = "␣" -- Non-breaking spaces
 }
 
+-- TODO: global is ugly?
 -- This function maps Neovim's internal mode identifiers to human-readable mode names for the status line.
 _G.mode_map = function()
   local modes = {
@@ -51,28 +56,20 @@ vim.opt.statusline = "%{v:lua.mode_map()} %f %m %= %l:%c (%L) [%p%%]"
 -- It also allows us to paste with the 'p' and 'P' commands without using the '"+p' or '"+P' commands.
 vim.opt.clipboard = 'unnamedplus'
 
--- This function adds key mappings for '<leader>--', '<leader>//', and '<leader>#' in visual mode.
--- When we select one or multiple lines and press one of these mappings,
--- each line is prefixed with '-- ', '// ', or '# '.
--- If the key sequence is pressed too slowly,
--- Neovim may interpret the input as separate key presses instead of executing the mapping.
-function add_line_comment_key_map(keybinding_suffix, replacement_text_part)
-  if not replacement_text_part then
-    replacement_text_part = keybinding_suffix
+-- Maps '<leader>o' to insert a new line below in normal mode and return to normal mode immediately.
+vim.keymap.set("n", "<leader>o", "o<Esc>", KEY_MAP_OPTIONS_TABLE)
+-- Maps '<leader>O' to insert a new line above in normal mode and return to normal mode immediately.
+vim.keymap.set("n", "<leader>O", "O<Esc>", KEY_MAP_OPTIONS_TABLE)
+
+-- When yanking (copying), it highlights the yanked text.
+vim.api.nvim_create_autocmd('TextYankPost', {
+  callback = function()
+    vim.highlight.on_yank()
   end
+})
 
-  vim.api.nvim_set_keymap(
-    "v",
-    "<leader>" .. keybinding_suffix, ":<C-U>'<,'>s/^/" .. replacement_text_part .. " /g<CR>:noh<CR>",
-     -- It prevents the mapping from triggering other mappings and suppresses command-line messages.
-    { noremap = true, silent = true }
-  )
-end
-
-add_line_comment_key_map("--")
-add_line_comment_key_map("#")
-add_line_comment_key_map("//", "\\/\\/")
-
+require("toggle_comment")({ KEY_MAP_OPTIONS_TABLE = KEY_MAP_OPTIONS_TABLE })
+require("detect_indentation")()
 require("extra_windows")({ RULER_COLUMN = RULER_COLUMN })
 
 -- Bootstraps the 'lazy.nvim' plugin manager by cloning it if not installed and adding it to the runtime path,
@@ -94,7 +91,7 @@ end
 vim.opt.rtp:prepend(lazy_path)
 
 require("lazy").setup({
-  -- A plugin is an extendable fuzzy finder over lists, enabling file, buffer, and text search.
+  -- A plugin that is an extendable fuzzy finder over lists, enabling file, buffer, and text search.
   {
     "nvim-telescope/telescope.nvim",
     dependencies = { "nvim-lua/plenary.nvim" },
@@ -126,6 +123,14 @@ require("lazy").setup({
           show_start = true -- Show the start of the scope.
         }
       })
+    end
+  },
+
+  -- A plugin that deeply integrates Git into buffers.
+  {
+    "lewis6991/gitsigns.nvim",
+    config = function()
+      require("gitsigns").setup()
     end
   },
 
