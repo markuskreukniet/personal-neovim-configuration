@@ -1,32 +1,29 @@
 return function()
+-- -- TODO: use switch? TODO: naming
 -- local function is_double_forward_slash_comment(filetype)
+--   -- double dash comments filetypes
+--   local comment = "--"
+--   if filetype == "lua" then
+--     return comment, comment
+--   end
+
 --   -- double forward slash comments filetypes
+--   comment = "//"
+--   local replacement_text_part = "\\/\\/"
 --   if filetype == "cpp" or
 --     filetype == "go" or
 --     filetype == "java" or
 --     filetype == "javascript" or
 --     filetype == "typescript" or
 --     filetype == "kotlin" then
---     return "//", "\\/\\/"
+--     return comment, replacement_text_part
 --   end
 
---   return false
--- end
-
--- local function is_double_dash_comment(filetype)
---   if filetype == "lua" then
---     return true
---   end
-
---   return false
--- end
-
--- local function is_hash_comment(filetype)
+--   -- hash comment filetypes
+--   comment = "#"
 --   if filetype == "python" then
---     return true
+--     return comment, comment
 --   end
-
---   return false
 -- end
 
 --   local filetype = nil
