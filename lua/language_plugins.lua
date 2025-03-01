@@ -28,10 +28,10 @@ return {
         settings = {
           Lua = {
             runtime = {
-                -- Specifies the Lua runtime version (Neovim uses LuaJIT for better performance).
+              -- Specifies the Lua runtime version (Neovim uses LuaJIT for better performance).
               version = "LuaJIT",
-                -- Splits Lua's module search paths into a table for the language server,
-                -- ensuring it can resolve required modules correctly.
+              -- Splits Lua's module search paths into a table for the language server,
+              -- ensuring it can resolve required modules correctly.
               path = vim.split(package.path, ";")
             },
             -- It prevents 'undefined global' warnings for the Neovim `vim` global.
@@ -80,15 +80,13 @@ return {
         formatters_by_ft = {
           javascript = prettier,
           javascriptreact = prettier,
-          typescript = prettier,
-          typescriptreact = prettier,
           json = prettier,
           yaml = prettier,
           markdown = prettier
         },
         format_on_save = {
           timeout_ms = 1000, -- Maximum wait time before formatting times out.
-          lsp_fallback = true -- Use LSP formatting if no formatter is configured for the file type.
+          lsp_fallback = false -- Prevents fallback to LSP formatting if no formatter is configured for the file type.
         }
       })
 
@@ -109,8 +107,6 @@ return {
 
       lint.linters_by_ft = {
         javascript = eslint,
-        typescript = eslint,
-        javascriptreact = eslint,
         typescriptreact = eslint
       }
 
@@ -160,7 +156,7 @@ return {
         "query", -- Tree-sitter queries for advanced highlighting and parsing
         "vim", -- Vimscript syntax highlighting and parsing
         "vimdoc" -- Vim documentation highlighting
-    },
+      },
       -- For languages like Ruby that use Vim's regex for indenting,
       -- add them to `additional_vim_regex_highlighting` and `disable indent`.
       highlight = {

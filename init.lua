@@ -1,3 +1,4 @@
+local utils = require("utils/utils")
 local SPACE_BAR = " "
 local RULER_COLUMN = 120
 
@@ -69,6 +70,24 @@ vim.opt.clipboard = "unnamedplus"
 vim.keymap.set("n", "<leader>o", "o<Esc>", KEY_MAP_OPTIONS_TABLE)
 -- Maps `<leader>O` to insert a new line above in normal mode and return to normal mode immediately.
 vim.keymap.set("n", "<leader>O", "O<Esc>", KEY_MAP_OPTIONS_TABLE)
+
+local rename_current_file = "Rename current file"
+
+vim.keymap.set("n", "<leader>rf", function()
+  local current_name = vim.fn.expand("%") -- Get the current buffer's filename (relative to CWD).
+  -- Get a new filename from user input, using the current name as the default and trim spaces.
+  local new_name = vim.trim(vim.fn.input(rename_current_file .. ": ", current_name))
+
+  if not utils.is_empty(new_name) and new_name ~= current_name then
+    local success, err = os.rename(current_name, new_name)
+    if success then
+      vim.cmd("e " .. new_name)
+      vim.cmd("bd " .. current_name)
+    else
+      print("Error: " .. err)
+    end
+  end
+end, { desc = rename_current_file })
 
 -- When yanking (copying), it highlights the yanked text.
 vim.api.nvim_create_autocmd("TextYankPost", {

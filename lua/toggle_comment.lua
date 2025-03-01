@@ -68,7 +68,7 @@ return function(config)
     local start_pos, end_pos = get_positions()
     local lines, start_line, end_line = get_whole_visual_lines(start_pos, end_pos)
 
-    if lines == nil then
+    if lines == nil or start_line == nil or end_line == nil then
       return
     end
 
@@ -80,8 +80,8 @@ return function(config)
     local non_commented_indexed_lines = {}
 
     for i, line in ipairs(lines) do
-      if not utils.isEmpty(line) then
-        if utils.startsWith(line, replacement_text) then
+      if not utils.is_empty(line) then
+        if utils.starts_with(line, replacement_text) then
           table_insert_indexed_line(commented_indexed_lines, i, line)
         else
           table_insert_indexed_line(non_commented_indexed_lines, i, line)
@@ -95,18 +95,11 @@ return function(config)
       end
     else
       for _, indexed_line in ipairs(commented_indexed_lines) do
-        lines[indexed_line.index] = utils.replaceFirst(indexed_line.line, replacement_text, "")
+        lines[indexed_line.index] = utils.replace_first(indexed_line.line, replacement_text, "")
       end
     end
 
-    -- Replaces lines in the current buffer from `start_line` to `end_line` (0-based index) with the provided list of lines.
-    -- `vim.api.nvim_buf_set_lines` can perform multiple updates instead of one big update.
-    -- `silent!` suppresses unnecessary messages that could slow down execution.
-    -- `noautocmd` prevents triggering autocommands (e.g., syntax highlighting updates) during bulk changes.
-    -- `doautocmd` restores normal behavior after updates.
-    vim.cmd("silent! noautocmd")
-    vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, lines)
-    vim.cmd("doautocmd")
+    utils.set_buffer_lines(0, start_line - 1, end_line, lines)
   end
 
   -- "FileType" triggers every time the file type of a buffer is set or changed.

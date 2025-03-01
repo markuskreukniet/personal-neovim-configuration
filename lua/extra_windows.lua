@@ -1,11 +1,22 @@
 return function(config)
+  local utils = require("utils/utils")
   local RULER_COLUMN = config.RULER_COLUMN
   local BUFFER_FLOATING_WINDOW_WIDTH = 34
 
+  local function create_extra_window_buf()
+    -- Create an unlisted (not shown in `:ls`) scratch buffer that is not associated with a file.
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "hide" -- TODO: comment
+    return buf
+  end
+
   local windows_state = {
-    left_margin_window = nil,
-    buffers_floating_window = nil
+    left_margin_window = -1,
+    left_margin_window_buffer = create_extra_window_buf(),
+    buffers_floating_window = -1,
+    buffers_floating_window_buffer = create_extra_window_buf()
   }
+  local buffers_floating_window_buffer_line_length = 1
 
   local function get_non_extra_window_ids()
     return vim.tbl_filter(function(id)
@@ -15,24 +26,17 @@ return function(config)
 
   local function close_window(window_key)
     if windows_state[window_key] and vim.api.nvim_win_is_valid(windows_state[window_key]) then
-      vim.api.nvim_win_close(windows_state[window_key], true)
-      windows_state[window_key] = nil
+      vim.api.nvim_win_close(windows_state[window_key], true) -- TODO: comment, forcefull close
+      windows_state[window_key] = -1 -- TODO: is this needed?
     end
   end
 
-  local function set_buffer_hidden_to_wipe(buffer)
-    vim.bo[buffer].bufhidden = "wipe"
-  end
-
   local function open_left_margin_window(available_columns)
-    vim.cmd("topleft vnew")
+    vim.cmd("topleft vsplit +buffer" .. windows_state.left_margin_window_buffer)
     vim.cmd("vertical resize " .. math.floor(available_columns / 2))
 
     windows_state.left_margin_window = vim.api.nvim_get_current_win()
-    local buf = vim.api.nvim_get_current_buf()
-    set_buffer_hidden_to_wipe(buf)
 
-    vim.bo[buf].buflisted = false -- Exclude this buffer from the `:ls` buffer list.
     vim.wo[windows_state.left_margin_window].number = false
     vim.wo[windows_state.left_margin_window].relativenumber = false
     vim.wo[windows_state.left_margin_window].cursorline = false
@@ -57,7 +61,7 @@ return function(config)
     })
   end
 
-  local function open_buffers_floating_window()
+  local function update_buffers_floating_window_buffer()
     local lines = {}
 
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -73,20 +77,20 @@ return function(config)
       end
     end
 
-    -- Create an unlisted (not shown in `:ls`) scratch buffer that is not associated with a file.
-    local buf = vim.api.nvim_create_buf(false, true)
     -- Replace all lines in `buf` with `lines`, starting at index 0 and extending to the last line (-1).
-    -- `false` allows the buffer to grow dynamically if the range exceeds its current size.
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    set_buffer_hidden_to_wipe(buf)
+    utils.set_buffer_lines(windows_state.buffers_floating_window_buffer, 0, -1, lines)
 
+    buffers_floating_window_buffer_line_length = #lines
+  end
+
+  local function open_buffers_floating_window()
     windows_state.buffers_floating_window = vim.api.nvim_open_win(
-      buf,
+      windows_state.buffers_floating_window_buffer,
       false, -- Do not enter insert mode automatically when opening the window.
       {
         relative = "editor",
         width = BUFFER_FLOATING_WINDOW_WIDTH,
-        height = #lines,
+        height = buffers_floating_window_buffer_line_length,
         row = 1,
         col = vim.o.columns - BUFFER_FLOATING_WINDOW_WIDTH - 1,
         style = "minimal",
@@ -108,9 +112,6 @@ return function(config)
     return has_extra_width(available_columns, BUFFER_FLOATING_WINDOW_WIDTH)
   end
 
-  -- In this function,
-  -- we must call `get_non_extra_window_ids()` even after `close_window()` calls because window closing is asynchronous,
-  -- and the windows might not be fully closed yet.
   local function calculate_available_columns()
     local count = 0
     for _, id in ipairs(get_non_extra_window_ids()) do
@@ -125,15 +126,36 @@ return function(config)
     return vim.o.columns - (RULER_COLUMN * count)
   end
 
-  vim.api.nvim_create_autocmd({"VimEnter", "VimResized", "BufEnter", "BufDelete"}, {
-    callback = function(args)
-      -- The "VimEnter" event should close the `buffers_floating_window`.
-      -- That could be because the "BufEnter" event happens before that.
-      close_window("buffers_floating_window")
+  -- TODO: comment. When we create a new buf, without an existing file the first event that happens when the is visible with :ls is "BufEnter"
+  vim.api.nvim_create_autocmd({"BufEnter"}, {
+    callback = function()
+      update_buffers_floating_window_buffer()
 
-      if args.event == "VimResized" then
-        close_window("left_margin_window")
+      if windows_state.buffers_floating_window ~= -1 then
+        vim.api.nvim_win_set_height(windows_state.buffers_floating_window, buffers_floating_window_buffer_line_length)
       end
+    end
+  })
+
+  vim.api.nvim_create_autocmd({"VimEnter"}, {
+    callback = function()
+      local available_columns = calculate_available_columns()
+
+      if has_extra_window_width(available_columns) then
+        open_buffers_floating_window()
+      end
+
+      if has_double_extra_windows_width(available_columns) then
+        open_left_margin_window(available_columns)
+      end
+    end
+  })
+
+  -- TODO: should not close the windows every time, maybe resize/replace them
+  vim.api.nvim_create_autocmd({"VimResized"}, {
+    callback = function()
+      close_window("buffers_floating_window")
+      close_window("left_margin_window")
 
       local available_columns = calculate_available_columns()
 
@@ -141,19 +163,9 @@ return function(config)
         open_buffers_floating_window()
       end
 
-      if (args.event == "VimEnter" or args.event == "VimResized") and
-        has_double_extra_windows_width(available_columns) then
+      if has_double_extra_windows_width(available_columns) then
           open_left_margin_window(available_columns)
       end
-
-      -- vim.schedule(function()
-      --   local ids = vim.api.nvim_tabpage_list_wins(0)
-      --   print('nr of ids: ' .. #ids)
-      -- end)
-      -- vim.schedule(function()
-      --   local buffers = vim.api.nvim_list_bufs()
-      --   print('nr of buffers: ' .. #buffers)
-      -- end)
     end
   })
 
@@ -168,6 +180,14 @@ return function(config)
         elseif ids_count == 1 and args.event == "WinClosed" then
           vim.cmd("q")
         end
+      end)
+    end
+  })
+
+  vim.api.nvim_create_autocmd({"BufUnload"}, {
+    callback = function(args)
+      vim.schedule(function()
+        vim.api.nvim_exec_autocmds("BufEnter", {})
       end)
     end
   })
