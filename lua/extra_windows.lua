@@ -3,6 +3,9 @@ return function(config)
   local RULER_COLUMN = config.RULER_COLUMN
   local BUFFER_FLOATING_WINDOW_WIDTH = 34
 
+  -- TODO: check code on comments and useless code
+  --vim.api.nvim_win_hide(window)
+
   local function create_extra_window_buf()
     -- Create an unlisted (not shown in `:ls`) scratch buffer that is not associated with a file.
     local buf = vim.api.nvim_create_buf(false, true)
@@ -16,7 +19,7 @@ return function(config)
     buffers_floating_window = -1,
     buffers_floating_window_buffer = create_extra_window_buf()
   }
-  local buffers_floating_window_buffer_line_length = 1
+  local buffers_floating_window_buffer_line_length = 1  -- TODO: should it be a part of this state part? -- Start as 1, since there is always at least one buffer
 
   local function get_non_extra_window_ids()
     return vim.tbl_filter(function(id)
@@ -25,7 +28,7 @@ return function(config)
   end
 
   local function close_window(window_key)
-    if windows_state[window_key] and vim.api.nvim_win_is_valid(windows_state[window_key]) then
+    if windows_state[window_key] and vim.api.nvim_win_is_valid(windows_state[window_key]) then -- TODO: use ~= -1 instead?
       vim.api.nvim_win_close(windows_state[window_key], true) -- TODO: comment, forcefull close
       windows_state[window_key] = -1 -- TODO: is this needed?
     end
@@ -83,6 +86,10 @@ return function(config)
     buffers_floating_window_buffer_line_length = #lines
   end
 
+  local function calculate_buffers_floating_window_horizontal_position()
+    return vim.o.columns - BUFFER_FLOATING_WINDOW_WIDTH - 1
+  end
+
   local function open_buffers_floating_window()
     windows_state.buffers_floating_window = vim.api.nvim_open_win(
       windows_state.buffers_floating_window_buffer,
@@ -92,24 +99,12 @@ return function(config)
         width = BUFFER_FLOATING_WINDOW_WIDTH,
         height = buffers_floating_window_buffer_line_length,
         row = 1,
-        col = vim.o.columns - BUFFER_FLOATING_WINDOW_WIDTH - 1,
+        col = calculate_buffers_floating_window_horizontal_position(),
         style = "minimal",
         border = "rounded",
         focusable = false
       }
     )
-  end
-
-  local function has_extra_width(available_columns, extra_width)
-    return available_columns >= extra_width
-  end
-
-  local function has_double_extra_windows_width(available_columns)
-    return has_extra_width(available_columns, BUFFER_FLOATING_WINDOW_WIDTH * 2)
-  end
-
-  local function has_extra_window_width(available_columns)
-    return has_extra_width(available_columns, BUFFER_FLOATING_WINDOW_WIDTH)
   end
 
   local function calculate_available_columns()
@@ -126,6 +121,31 @@ return function(config)
     return vim.o.columns - (RULER_COLUMN * count)
   end
 
+  local function calculate_available_column_widths()
+    local function has_extra_width(available_columns, extra_width)
+      return available_columns >= extra_width
+    end
+
+    local available_columns = calculate_available_columns()
+
+    return available_columns,
+      has_extra_width(available_columns, BUFFER_FLOATING_WINDOW_WIDTH),
+      has_extra_width(available_columns, BUFFER_FLOATING_WINDOW_WIDTH * 2)
+  end
+
+  -- TODO: comment
+  -- If you start Neovim without a file (nvim), the main events that are triggered are:
+  -- These three events happen:
+  -- UIEnter: When Neovim's UI is initialized (for GUIs like Neovide).
+  -- BufEnter: When entering the default empty buffer ([No Name]).
+  -- VimEnter: When Neovim has fully initialized.
+
+  -- When you execute :vsplit, the following events occur in this order:
+  -- WinNew: A new window is created (the split).
+  -- BufEnter: The new window enters the current buffer.
+  -- BufWinEnter: The buffer becomes visible in the new window.
+  -- WinEnter: The cursor moves into the new split window.
+
   -- TODO: comment. When we create a new buf, without an existing file the first event that happens when the is visible with :ls is "BufEnter"
   vim.api.nvim_create_autocmd({"BufEnter"}, {
     callback = function()
@@ -139,33 +159,43 @@ return function(config)
 
   vim.api.nvim_create_autocmd({"VimEnter"}, {
     callback = function()
-      local available_columns = calculate_available_columns()
+      local available_columns, has_extra_width, has_double_extra_width = calculate_available_column_widths()
 
-      if has_extra_window_width(available_columns) then
+      if has_extra_width then
         open_buffers_floating_window()
       end
 
-      if has_double_extra_windows_width(available_columns) then
+      if has_double_extra_width then
         open_left_margin_window(available_columns)
       end
     end
   })
 
-  -- TODO: should not close the windows every time, maybe resize/replace them
   vim.api.nvim_create_autocmd({"VimResized"}, {
     callback = function()
-      close_window("buffers_floating_window")
-      close_window("left_margin_window")
+      local available_columns, has_extra_width, has_double_extra_width = calculate_available_column_widths()
 
-      local available_columns = calculate_available_columns()
-
-      if has_extra_window_width(available_columns) then
+      if windows_state.buffers_floating_window == -1 and has_extra_width then
         open_buffers_floating_window()
+      elseif windows_state.buffers_floating_window ~= -1 and has_extra_width then
+        vim.api.nvim_win_set_config(windows_state.buffers_floating_window, {
+            relative = "editor", -- TODO: duplicate code and comment is missing
+            row = 1, -- TODO: duplicate code
+            col = calculate_buffers_floating_window_horizontal_position()
+          })
+      elseif windows_state.buffers_floating_window ~= -1 and not has_extra_width then
+        close_window("buffers_floating_window")
       end
+      -- Do nothing when `windows_state.buffers_floating_window == -1 and not has_extra_width`
 
-      if has_double_extra_windows_width(available_columns) then
-          open_left_margin_window(available_columns)
+      if windows_state.left_margin_window == -1 and has_double_extra_width then
+        open_left_margin_window(available_columns)
+      elseif windows_state.left_margin_window ~= -1 and has_double_extra_width then
+        vim.api.nvim_win_set_width(windows_state.left_margin_window, math.floor(available_columns / 2)) -- TODO: duplicate code
+      elseif windows_state.left_margin_window ~= -1 and not has_double_extra_width then
+        close_window("left_margin_window")
       end
+      -- Do nothing when `windows_state.left_margin_window == -1 and not has_double_extra_width`
     end
   })
 
