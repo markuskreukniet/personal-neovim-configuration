@@ -15,5 +15,7 @@
 
 ## TODO:
 
+- fuzzy find should not find all project files, such as .gitignore files
+- detect indentation could not happen when we create a new empty file. In that case we could use the same indentation as the previous file.
 - something like a minimap?
 - show :reg content in floating window?
