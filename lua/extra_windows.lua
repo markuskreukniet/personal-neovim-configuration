@@ -175,7 +175,7 @@ return function(config)
 
   -- When creating a new buffer without an existing file,
   -- the first event that occurs when it becomes visible in `:ls` is `BufEnter`.
-  vim.api.nvim_create_autocmd({"BufEnter"}, {
+  vim.api.nvim_create_autocmd("BufEnter", {
     callback = function()
       update_buffers_floating_window_buffer()
 
@@ -185,7 +185,7 @@ return function(config)
     end
   })
 
-  vim.api.nvim_create_autocmd({"VimEnter"}, {
+  vim.api.nvim_create_autocmd("VimEnter", {
     callback = function()
       local available_columns, has_extra_width, has_double_extra_width = calculate_available_column_widths()
 
@@ -199,7 +199,7 @@ return function(config)
     end
   })
 
-  vim.api.nvim_create_autocmd({"VimResized"}, {
+  vim.api.nvim_create_autocmd("VimResized", {
     callback = function()
       local available_columns, has_extra_width, has_double_extra_width = calculate_available_column_widths()
 
@@ -243,7 +243,7 @@ return function(config)
   })
 
   -- Without `vim.schedule`, it does not work.
-  vim.api.nvim_create_autocmd({"BufDelete"}, {
+  vim.api.nvim_create_autocmd("BufDelete", {
     callback = function(args)
       vim.schedule(function()
         vim.api.nvim_exec_autocmds("BufEnter", {})

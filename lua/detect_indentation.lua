@@ -1,4 +1,7 @@
 return function()
+  local previous_indentation_expand_tab = false
+  local previous_indentation_space_indent_size = -1
+
   local function count_indentation_types()
     local space_indents = {}
     local tab_count = 0
@@ -91,20 +94,29 @@ return function()
   end
 
   local function set_indentation_style(tab_count, total_space_indents, space_indent_size)
+    local expand_tab = true
+
     if tab_count > total_space_indents then
-      set_indentation(false, space_indent_size)
-    else
-      set_indentation(true, space_indent_size)
+      expand_tab = false
     end
+
+    set_indentation(expand_tab, space_indent_size)
+
+    previous_indentation_expand_tab = expand_tab
+    previous_indentation_space_indent_size = space_indent_size
   end
 
   local function detect_indentation()
     local tab_count, space_indents = count_indentation_types()
     local total_space_indents = sum_space_indent_counts(space_indents)
 
-    -- When the indentation consists only of tabs, detecting a space indent size is impossible.
-    if total_space_indents == 0 and tab_count > 0 then
-      set_indentation(false, 4)
+    if total_space_indents == 0 then
+      -- When the indentation consists only of tabs, detecting a space indent size is impossible.
+      if tab_count > 0 then
+        set_indentation(false, 4)
+      elseif previous_indentation_space_indent_size > -1 then
+        set_indentation(previous_indentation_expand_tab, previous_indentation_space_indent_size)
+      end
       return
     end
 
@@ -121,7 +133,7 @@ return function()
     end
   end
 
-  vim.api.nvim_create_autocmd("BufReadPost", {
+  vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
     callback = detect_indentation
   })
 end
