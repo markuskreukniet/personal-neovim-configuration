@@ -15,6 +15,5 @@
 
 ## TODO:
 
-- fuzzy find should not find all project files, such as .gitignore files
 - something like a minimap?
 - show :reg content in floating window?
