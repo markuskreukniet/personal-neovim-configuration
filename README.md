@@ -7,7 +7,7 @@
 1. (optional) Live grep of Telescope requires `ripgrep` (rg). We can Install it, for example, with:
 
     - Windows: `choco install ripgrep`
-    - Debian: `sudo apt install ripgrep
+    - Debian: `sudo apt install ripgrep`
 
 ## Good To Know
 
